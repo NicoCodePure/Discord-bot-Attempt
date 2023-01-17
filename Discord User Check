@@ -1,0 +1,45 @@
+import discord
+from woocommerce import API
+
+# Replace with your own Discord bot token
+TOKEN = 'your_token_here'
+
+# Replace with your own WooCommerce API credentials
+wc_api = API(
+    url='https://yourstore.com',
+    consumer_key='ck_XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX',
+    consumer_secret='cs_XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX',
+    version='wc/v3'
+)
+
+# Replace with the Discord role ID for the subscriber role
+SUBSCRIBER_ROLE_ID = 1234567890
+
+client = discord.Client()
+
+@client.event
+async def on_ready():
+    print('Logged in as', client.user)
+
+@client.event
+async def on_member_join(member):
+    # Check if the user is a subscriber
+    customer_id = get_customer_id(member.id)
+    if customer_id is None:
+        return
+    subscriptions = wc_api.get(f'customers/{customer_id}/subscriptions').json()
+    for subscription in subscriptions:
+        if subscription['status'] == 'active':
+            role = discord.utils.get(member.guild.roles, id=SUBSCRIBER_ROLE_ID)
+            await member.add_roles(role)
+            return
+
+# function to get customer id from discord user id
+def get_customer_id(user_id):
+    customers = wc_api.get('customers').json()
+    for customer in customers:
+        if customer['meta_data'][0]['value'] == user_id:
+            return customer['id']
+    return None
+
+client.run(TOKEN)
