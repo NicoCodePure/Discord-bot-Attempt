@@ -1,5 +1,6 @@
 import discord
 from woocommerce import API
+import asyncio
 
 # Replace with your own Discord bot token
 TOKEN = 'your_token_here'
@@ -20,6 +21,7 @@ client = discord.Client()
 @client.event
 async def on_ready():
     print('Logged in as', client.user)
+    await check_subscriptions()
 
 @client.event
 async def on_member_join(member):
@@ -33,6 +35,24 @@ async def on_member_join(member):
             role = discord.utils.get(member.guild.roles, id=SUBSCRIBER_ROLE_ID)
             await member.add_roles(role)
             return
+
+async def check_subscriptions():
+    while True:
+        await asyncio.sleep(3600)  # check every 1 hour
+        members = client.get_all_members()
+        for member in members:
+            customer_id = get_customer_id(member.id)
+            if customer_id is None:
+                continue
+            subscriptions = wc_api.get(f'customers/{customer_id}/subscriptions').json()
+            active = False
+            for subscription in subscriptions:
+                if subscription['status'] == 'active':
+                    active = True
+                    break
+            if not active:
+                role = discord.utils.get(member.guild.roles, id=SUBSCRIBER_ROLE_ID)
+                await member.remove_roles(role)
 
 # function to get customer id from discord user id
 def get_customer_id(user_id):
